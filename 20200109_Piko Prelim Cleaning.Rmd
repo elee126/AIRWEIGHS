@@ -144,7 +144,7 @@ rm(piko_incomplete)
 ```{r micro_read_in}
 
 require(data.table)
-micro_data <- rbindlist(lapply(list.files(path="M:/Emily K23 - AIRWEIGHS/Emily K23/Analyses/Data/Working data", pattern="*.csv", full.names = TRUE), fread))
+micro_data <- rbindlist(lapply(list.files(path="M:/Emily K23 - AIRWEIGHS/Emily K23/Analyses/AIRWEIGHS_Git_Analysis/Data/Working data", pattern="*.csv", full.names = TRUE), fread))
 
 
 ```
@@ -173,8 +173,6 @@ names(micro_data)[names(micro_data) == "Date"] <- "date"
 micro_data <- micro_data %>% 
   select(id, date, micro_time, instrument, micro_pf, micro_fev)
 
-# Remove peakflow readings less than 100 ---> now or later?
-#micro_data <- micro_data[!(micro_data$`PEF (l/min)` < 100),]
 
 ```
 
@@ -230,20 +228,43 @@ rm(micro_data)
 
 ```
 
-# Flag PF>400 and FEV>4 for BMI check 
-```{r flags }
+# Flag PF<100 and FEV<1
+```{r flag_lowest_values }
+
+```
+
+# Flag PF>400 and FEV>4 
+```{r flag_highest_values }
 
 # Create a flag variable 
 pikmic <- pikmic %>% 
-  mutate(flag = ifelse(micro_pf > 399, 1, NA)) %>% 
-  mutate(flag = ifelse(micro_fev > 3.99, 1, flag)) %>% 
-  mutate(flag = ifelse(piko_pf > 399, 1, flag)) %>% 
-  mutate(flag = ifelse(piko_fev > 3.99, 1, flag))
+  mutate(flag = ifelse(piko_pf > 399, 1, NA)) %>% 
+  mutate(flag = ifelse(piko_fev > 3.99, 1, flag)) %>% 
+  mutate(flag = ifelse(micro_pf > 399, 1, flag)) %>% 
+  mutate(flag = ifelse(micro_fev > 3.99, 1, flag)) 
+  
 
 # Take a look at who
-pikmic_flagged <- filter(pikmic, is.na(pikmic$flag) == FALSE) 
+pikmic_flagged <- filter(pikmic, is.na(pikmic$flag) == FALSE)
+
+# 153 pikmic per piko 
+# 161 pikmic per micro
 
 flag_ids <- unique(pikmic_flagged$id)     # 2575 2824 2839 2930 3030 3331 3503 3538 3692 3934 3936
+
+# Checking that flagging worked
+unflagged_p <- pikmic %>% 
+  filter(((piko_pf > 399) & (is.na(flag) == TRUE)) | ((piko_fev > 3.99) & (is.na(flag) == TRUE)))   # Did not work for piko
+
+unflagged_m <- pikmic %>% 
+  filter(((micro_pf > 399) & (is.na(flag) == TRUE)) | ((micro_fev > 3.99) & (is.na(flag) == TRUE))) # Worked for micro
+
+
+unflagged_p <- unflagged_p %>% 
+  mutate(flag = ifelse(micro_pf > 399, 1, NA)) %>% 
+  mutate(flag = ifelse(micro_fev > 3.99, 1, flag)) 
+
+
 
 ```
 
