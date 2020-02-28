@@ -198,7 +198,8 @@ rm(micro_incomplete)
 
 
 
-### JOINING TBLS + CALCULATING DIFFERENCES ###
+
+### JOINING TBLS + FLAGGING SUSPICIOUS VALUES ###
 # Attempting dataset joining
 ```{r join }
 
@@ -207,64 +208,35 @@ pikmic <- merge(piko_reshaped, micro_data, by = c("id", "date", "instrument", "r
 
 ```
 
-# Differences calculation
-```{r differences }
-
-pikmic <- pikmic %>% 
-  mutate(pf_diff = (piko_pf - micro_pf)) %>% 
-  mutate(fev_diff = (piko_fev - micro_fev)) %>% 
-  select(id, date, instrument, reading, micro_time, piko_pf, micro_pf, pf_diff, piko_fev, micro_fev, fev_diff)
-
-test2 <- pikmic %>% 
-  mutate(status = ifelse(fev_diff == 0 | pf_diff == 0, "ALMOST", NA)) %>% 
-  mutate(status = ifelse(fev_diff == 0 & pf_diff == 0, "YAY ! ", status)) %>% 
-  mutate(status = ifelse(is.na(fev_diff) == TRUE | is.na(pf_diff) == TRUE, "bah humbug", status)) %>% 
-  mutate(status = ifelse(is.na(status) == TRUE, ":C", status))
-
-# Clean up 
-rm(piko_codebook) 
-rm(piko_reshaped) 
-rm(micro_data) 
-
-```
-
-# Flag PF<100 and FEV<1
+# Flag PF<100 0r >400, FEV<1 or >4
 ```{r flag_lowest_values }
 
-```
+flag_data <- pikmic %>% 
+  mutate(flag_mic_pf = ifelse(micro_pf < 100, "low micro pf", NA)) %>% 
+  mutate(flag_mic_pf = ifelse(micro_pf > 399, "high micro pf", flag_mic_pf)) %>%
+  mutate(flag_pik_pf = ifelse(piko_pf < 100, "low piko pf", NA)) %>% 
+  mutate(flag_pik_pf = ifelse(piko_pf > 399, "high piko pf", flag_pik_pf)) %>% 
+  mutate(flag_mic_fev = ifelse(micro_fev < 1, "low micro fev", NA)) %>% 
+  mutate(flag_mic_fev = ifelse(micro_fev > 3.99, "high micro fev", flag_mic_fev)) %>% 
+  mutate(flag_pik_fev = ifelse(piko_fev < 1, "low piko fev", NA)) %>% 
+  mutate(flag_pik_fev = ifelse(piko_fev > 3.99, "high piko fev", flag_pik_fev)) %>% 
+  unite(flag_type, flag_pik_pf, flag_mic_pf, flag_pik_fev, flag_mic_fev, sep = " + ", remove = TRUE, na.rm = TRUE) #%>% 
+  #mutate(flag_yn = ifelse(flag_type != "", 1, NA))
 
-# Flag PF>400 and FEV>4 
-```{r flag_highest_values }
+# Only the flagged observations 
+flags_only <- flag_data %>% 
+  filter(flag_type != "")
 
-# Create a flag variable 
-pikmic <- pikmic %>% 
-  mutate(flag = ifelse(piko_pf > 399, 1, NA)) %>% 
-  mutate(flag = ifelse(piko_fev > 3.99, 1, flag)) %>% 
-  mutate(flag = ifelse(micro_pf > 399, 1, flag)) %>% 
-  mutate(flag = ifelse(micro_fev > 3.99, 1, flag)) 
-  
+flag_ids <- unique(flags_only$id)     
+# 69  338 1418 2265 2575 2739 2812 2813 2824 2839 2930 3030 
+# 3046 3051 3185 3226 3229 3254 3331 3449 3503 3509 3538 
+# 3692 3752 3802 3826 3906 3928 3934 3936 4095
 
-# Take a look at who
-pikmic_flagged <- filter(pikmic, is.na(pikmic$flag) == FALSE)
+# Only the study ids with any flagged value 
+flagged_participants <- flag_data %>% 
+  filter(id %in% flag_ids)
 
-# 153 pikmic per piko 
-# 161 pikmic per micro
-
-flag_ids <- unique(pikmic_flagged$id)     # 2575 2824 2839 2930 3030 3331 3503 3538 3692 3934 3936
-
-# Checking that flagging worked
-unflagged_p <- pikmic %>% 
-  filter(((piko_pf > 399) & (is.na(flag) == TRUE)) | ((piko_fev > 3.99) & (is.na(flag) == TRUE)))   # Did not work for piko
-
-unflagged_m <- pikmic %>% 
-  filter(((micro_pf > 399) & (is.na(flag) == TRUE)) | ((micro_fev > 3.99) & (is.na(flag) == TRUE))) # Worked for micro
-
-
-unflagged_p <- unflagged_p %>% 
-  mutate(flag = ifelse(micro_pf > 399, 1, NA)) %>% 
-  mutate(flag = ifelse(micro_fev > 3.99, 1, flag)) 
-
-
+write.csv(flagged_participants, "20200228_Flagged Participants.csv")
 
 ```
 
@@ -290,7 +262,26 @@ rm(pikmic_flagged)
 ```
 
 
+# Differences calculation
+```{r differences }
 
+pikmic <- pikmic %>% 
+  mutate(pf_diff = (piko_pf - micro_pf)) %>% 
+  mutate(fev_diff = (piko_fev - micro_fev)) %>% 
+  select(id, date, instrument, reading, micro_time, piko_pf, micro_pf, pf_diff, piko_fev, micro_fev, fev_diff)
+
+test2 <- pikmic %>% 
+  mutate(status = ifelse(fev_diff == 0 | pf_diff == 0, "ALMOST", NA)) %>% 
+  mutate(status = ifelse(fev_diff == 0 & pf_diff == 0, "YAY ! ", status)) %>% 
+  mutate(status = ifelse(is.na(fev_diff) == TRUE | is.na(pf_diff) == TRUE, "bah humbug", status)) %>% 
+  mutate(status = ifelse(is.na(status) == TRUE, ":C", status))
+
+# Clean up 
+rm(piko_codebook) 
+rm(piko_reshaped) 
+rm(micro_data) 
+
+```
 
 
 
@@ -327,6 +318,41 @@ write.csv(test, "20200130_Prelilm combined dataframes.csv")
 
 ### ARCHIVED ATTEMPTS ### 
 
+
+# Flag PF>400 and FEV>4 
+```{r flag_highest_values }
+
+# Create a flag variable 
+pikmic <- pikmic %>% 
+  mutate(flag = ifelse(piko_pf > 399, 1, NA)) %>% 
+  mutate(flag = ifelse(piko_fev > 3.99, 1, flag)) %>% 
+  mutate(flag = ifelse(micro_pf > 399, 1, flag)) %>% 
+  mutate(flag = ifelse(micro_fev > 3.99, 1, flag)) 
+  
+
+# Take a look at who
+pikmic_flagged <- filter(pikmic, is.na(pikmic$flag) == FALSE)
+
+# 153 pikmic per piko 
+# 161 pikmic per micro
+
+flag_ids <- unique(pikmic_flagged$id)     # 2575 2824 2839 2930 3030 3331 3503 3538 3692 3934 3936
+
+# Checking that flagging worked
+unflagged_p <- pikmic %>% 
+  filter(((piko_pf > 399) & (is.na(flag) == TRUE)) | ((piko_fev > 3.99) & (is.na(flag) == TRUE)))   # Did not work for piko
+
+unflagged_m <- pikmic %>% 
+  filter(((micro_pf > 399) & (is.na(flag) == TRUE)) | ((micro_fev > 3.99) & (is.na(flag) == TRUE))) # Worked for micro
+
+
+unflagged_p <- unflagged_p %>% 
+  mutate(flag = ifelse(micro_pf > 399, 1, NA)) %>% 
+  mutate(flag = ifelse(micro_fev > 3.99, 1, flag)) 
+
+
+
+```
 
 # Micro: Read in digital data
 ```{r read_dig_data}
