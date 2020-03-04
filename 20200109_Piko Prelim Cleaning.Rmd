@@ -14,7 +14,6 @@ library(tidyverse)
 library(here)
 library(ggplot2)
 library(knitr)
-library(kableExtra)
 library(lubridate)
 library(tableone)
 library(forcats)
@@ -23,14 +22,8 @@ library(janitor)
 library(dplyr)
 library(qwraps2)
 library(plyr)
-library(ggridges)
-library(viridis)
-library(RColorBrewer)
 library(cowplot)
 library(gridExtra)
-library(beeswarm)
-library(ggbeeswarm)
-library(car)
 library(readr)
 library(magrittr)
 library(rhdf5)
@@ -208,10 +201,31 @@ pikmic <- merge(piko_reshaped, micro_data, by = c("id", "date", "instrument", "r
 
 ```
 
+# Differences calculation
+```{r differences }
+
+pikmic <- pikmic %>% 
+  mutate(pf_diff = (piko_pf - micro_pf)) %>% 
+  mutate(fev_diff = (piko_fev - micro_fev)) %>% 
+  select(id, date, instrument, reading, micro_time, piko_pf, micro_pf, pf_diff, piko_fev, micro_fev, fev_diff)
+
+#test2 <- pikmic %>% 
+#  mutate(status = ifelse(fev_diff == 0 | pf_diff == 0, "ALMOST", NA)) %>% 
+#  mutate(status = ifelse(fev_diff == 0 & pf_diff == 0, "YAY ! ", status)) %>% 
+#  mutate(status = ifelse(is.na(fev_diff) == TRUE | is.na(pf_diff) == TRUE, "bah humbug", status)) %>% 
+#  mutate(status = ifelse(is.na(status) == TRUE, ":C", status))
+
+# Clean up 
+rm(piko_codebook) 
+rm(piko_reshaped) 
+rm(micro_data) 
+
+```
+
 # Flag PF<100 0r >400, FEV<1 or >4
 ```{r flag_lowest_values }
 
-flag_data <- pikmic %>% 
+pikmic <- pikmic %>% 
   mutate(flag_mic_pf = ifelse(micro_pf < 100, "low micro pf", NA)) %>% 
   mutate(flag_mic_pf = ifelse(micro_pf > 399, "high micro pf", flag_mic_pf)) %>%
   mutate(flag_pik_pf = ifelse(piko_pf < 100, "low piko pf", NA)) %>% 
@@ -224,7 +238,7 @@ flag_data <- pikmic %>%
   #mutate(flag_yn = ifelse(flag_type != "", 1, NA))
 
 # Only the flagged observations 
-flags_only <- flag_data %>% 
+flags_only <- pikmic %>% 
   filter(flag_type != "")
 
 flag_ids <- unique(flags_only$id)     
@@ -233,12 +247,83 @@ flag_ids <- unique(flags_only$id)
 # 3692 3752 3802 3826 3906 3928 3934 3936 4095
 
 # Only the study ids with any flagged value 
-flagged_participants <- flag_data %>% 
+flagged_participants <- pikmic %>% 
   filter(id %in% flag_ids)
 
-write.csv(flagged_participants, "20200228_Flagged Participants.csv")
+#write.csv(flagged_participants, "20200228_Flagged Participants.csv")
 
 ```
+
+# Ranges for individual flagged ids 
+```{r flagged_ranges }
+
+test <- flags_only %>% 
+  select(id, piko_pf, micro_pf, piko_fev, micro_fev)
+
+test2 <- summary.data.frame(filter(test, id == 2575))
+
+# 69  
+#  piko_pf         micro_pf        piko_fev       micro_fev     
+# Min.   : 99.0   Min.   : 99.0   Min.   :0.420   Min.   :0.1600  
+# 1st Qu.:109.0   1st Qu.:106.5   1st Qu.:0.420   1st Qu.:0.3550  
+# Median :235.0   Median :137.0   Median :1.010   Median :0.4200  
+# Mean   :201.6   Mean   :152.0   Mean   :1.276   Mean   :0.5025  
+# 3rd Qu.:276.0   3rd Qu.:182.5   3rd Qu.:2.110   3rd Qu.:0.5675  
+# Max.   :289.0   Max.   :235.0   Max.   :2.420   Max.   :1.0100
+ 
+# 338 
+#   piko_pf         micro_pf        piko_fev        micro_fev     
+# Min.   : 77.0   Min.   : 64.0   Min.   :0.4700   Min.   :0.3500  
+# 1st Qu.:120.5   1st Qu.:115.5   1st Qu.:0.7725   1st Qu.:0.7525  
+# Median :152.5   Median :144.0   Median :0.8450   Median :0.8100  
+# Mean   :156.6   Mean   :140.4   Mean   :0.8731   Mean   :0.8246  
+# 3rd Qu.:177.8   3rd Qu.:164.5   3rd Qu.:0.9750   3rd Qu.:0.9325  
+# Max.   :256.0   Max.   :232.0   Max.   :1.3800   Max.   :1.2100  
+
+# 1418 
+#    piko_pf         micro_pf        piko_fev       micro_fev    
+# Min.   :117.0   Min.   :117.0   Min.   :0.860   Min.   :0.860  
+# 1st Qu.:118.0   1st Qu.:128.0   1st Qu.:0.940   1st Qu.:0.940  
+# Median :131.0   Median :144.0   Median :0.990   Median :0.990  
+# Mean   :139.2   Mean   :199.8   Mean   :1.094   Mean   :1.234  
+# 3rd Qu.:144.0   3rd Qu.:186.0   3rd Qu.:1.340   3rd Qu.:1.290  
+# Max.   :186.0   Max.   :424.0   Max.   :1.340   Max.   :2.090 
+ 
+# 2265 
+#   piko_pf          micro_pf         piko_fev       micro_fev    
+# Min.   : 53.00   Min.   : 51.00   Min.   :0.790   Min.   :0.170  
+# 1st Qu.: 90.25   1st Qu.: 63.00   1st Qu.:1.258   1st Qu.:0.305  
+# Median :132.00   Median : 68.00   Median :1.495   Median :0.520  
+# Mean   :130.88   Mean   : 79.73   Mean   :1.441   Mean   :0.560  
+# 3rd Qu.:178.75   3rd Qu.: 72.00   3rd Qu.:1.835   3rd Qu.:0.780  
+# Max.   :202.00   Max.   :248.00   Max.   :1.860   Max.   :1.410  
+
+# 2575 
+#   piko_pf         micro_pf        piko_fev       micro_fev    
+# Min.   :345.0   Min.   :401.0   Min.   :2.240   Min.   :2.310  
+# 1st Qu.:392.5   1st Qu.:403.0   1st Qu.:2.308   1st Qu.:2.368  
+# Median :403.0   Median :404.5   Median :2.385   Median :2.430  
+# Mean   :393.4   Mean   :405.8   Mean   :2.395   Mean   :2.437  
+# 3rd Qu.:406.5   3rd Qu.:407.5   3rd Qu.:2.462   3rd Qu.:2.507  
+# Max.   :414.0   Max.   :414.0   Max.   :2.570   Max.   :2.570 
+
+# 2739 
+# 2812 2813 2824 2839 2930 3030 
+# 3046 3051 3185 3226 3229 3254 3331 3449 3503 3509 3538 
+# 3692 3752 3802 3826 3906 3928 3934 3936 4095
+
+
+ranges <- data.table(flag.ids, ____, ____)
+
+
+
+pikmic <- pikmic %>% 
+  mutate(sus = )
+
+```
+
+
+
 
 # Read in BMI data! 
 ```{r bmi_read }
@@ -260,31 +345,6 @@ rm(bmi_data)
 rm(pikmic_flagged)
 
 ```
-
-
-# Differences calculation
-```{r differences }
-
-pikmic <- pikmic %>% 
-  mutate(pf_diff = (piko_pf - micro_pf)) %>% 
-  mutate(fev_diff = (piko_fev - micro_fev)) %>% 
-  select(id, date, instrument, reading, micro_time, piko_pf, micro_pf, pf_diff, piko_fev, micro_fev, fev_diff)
-
-test2 <- pikmic %>% 
-  mutate(status = ifelse(fev_diff == 0 | pf_diff == 0, "ALMOST", NA)) %>% 
-  mutate(status = ifelse(fev_diff == 0 & pf_diff == 0, "YAY ! ", status)) %>% 
-  mutate(status = ifelse(is.na(fev_diff) == TRUE | is.na(pf_diff) == TRUE, "bah humbug", status)) %>% 
-  mutate(status = ifelse(is.na(status) == TRUE, ":C", status))
-
-# Clean up 
-rm(piko_codebook) 
-rm(piko_reshaped) 
-rm(micro_data) 
-
-```
-
-
-
 
 
 # Look at data distribution 
