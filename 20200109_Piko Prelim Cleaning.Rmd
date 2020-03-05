@@ -257,57 +257,54 @@ flagged_participants <- pikmic %>%
 # Ranges for individual flagged ids 
 ```{r flagged_ranges }
 
-test <- flags_only %>% 
+test <- pikmic %>% 
   select(id, piko_pf, micro_pf, piko_fev, micro_fev)
 
-test2 <- summary.data.frame(filter(test, id == 2575))
+test2 <- summary.data.frame(filter(test, id == 69))
 
-# 69  
-#  piko_pf         micro_pf        piko_fev       micro_fev     
-# Min.   : 99.0   Min.   : 99.0   Min.   :0.420   Min.   :0.1600  
-# 1st Qu.:109.0   1st Qu.:106.5   1st Qu.:0.420   1st Qu.:0.3550  
-# Median :235.0   Median :137.0   Median :1.010   Median :0.4200  
-# Mean   :201.6   Mean   :152.0   Mean   :1.276   Mean   :0.5025  
-# 3rd Qu.:276.0   3rd Qu.:182.5   3rd Qu.:2.110   3rd Qu.:0.5675  
-# Max.   :289.0   Max.   :235.0   Max.   :2.420   Max.   :1.0100
+# id [# flagged]
+# 69 [5]
+# piko_pf         micro_pf        piko_fev       micro_fev    
+# Min.   : 99.0   Min.   : 99.0   Min.   :0.420   Min.   :0.160  
+# 1st Qu.:247.8   1st Qu.:247.0   1st Qu.:2.115   1st Qu.:2.105  
+# Median :283.0   Median :283.0   Median :2.365   Median :2.365  
+# Mean   :270.8   Mean   :269.4   Mean   :2.229   Mean   :2.210  
+# 3rd Qu.:303.5   3rd Qu.:302.5   3rd Qu.:2.540   3rd Qu.:2.553  
+# Max.   :346.0   Max.   :346.0   Max.   :2.750   Max.   :2.830  
  
-# 338 
-#   piko_pf         micro_pf        piko_fev        micro_fev     
-# Min.   : 77.0   Min.   : 64.0   Min.   :0.4700   Min.   :0.3500  
-# 1st Qu.:120.5   1st Qu.:115.5   1st Qu.:0.7725   1st Qu.:0.7525  
-# Median :152.5   Median :144.0   Median :0.8450   Median :0.8100  
-# Mean   :156.6   Mean   :140.4   Mean   :0.8731   Mean   :0.8246  
-# 3rd Qu.:177.8   3rd Qu.:164.5   3rd Qu.:0.9750   3rd Qu.:0.9325  
-# Max.   :256.0   Max.   :232.0   Max.   :1.3800   Max.   :1.2100  
+# 338 [42]
+#   piko_pf         micro_pf        piko_fev       micro_fev     
+# Min.   : 77.0   Min.   : 64.0   Min.   :0.470   Min.   :0.3500  
+# 1st Qu.:144.0   1st Qu.:131.8   1st Qu.:0.800   1st Qu.:0.7875  
+# Median :176.5   Median :166.5   Median :1.000   Median :0.9500  
+# Mean   :173.9   Mean   :165.1   Mean   :1.003   Mean   :0.9627  
+# 3rd Qu.:203.2   3rd Qu.:198.2   3rd Qu.:1.208   3rd Qu.:1.1825  
+# Max.   :271.0   Max.   :271.0   Max.   :1.430   Max.   :1.4300  
 
-# 1418 
-#    piko_pf         micro_pf        piko_fev       micro_fev    
-# Min.   :117.0   Min.   :117.0   Min.   :0.860   Min.   :0.860  
-# 1st Qu.:118.0   1st Qu.:128.0   1st Qu.:0.940   1st Qu.:0.940  
-# Median :131.0   Median :144.0   Median :0.990   Median :0.990  
-# Mean   :139.2   Mean   :199.8   Mean   :1.094   Mean   :1.234  
-# 3rd Qu.:144.0   3rd Qu.:186.0   3rd Qu.:1.340   3rd Qu.:1.290  
-# Max.   :186.0   Max.   :424.0   Max.   :1.340   Max.   :2.090 
- 
-# 2265 
-#   piko_pf          micro_pf         piko_fev       micro_fev    
-# Min.   : 53.00   Min.   : 51.00   Min.   :0.790   Min.   :0.170  
-# 1st Qu.: 90.25   1st Qu.: 63.00   1st Qu.:1.258   1st Qu.:0.305  
-# Median :132.00   Median : 68.00   Median :1.495   Median :0.520  
-# Mean   :130.88   Mean   : 79.73   Mean   :1.441   Mean   :0.560  
-# 3rd Qu.:178.75   3rd Qu.: 72.00   3rd Qu.:1.835   3rd Qu.:0.780  
-# Max.   :202.00   Max.   :248.00   Max.   :1.860   Max.   :1.410  
-
-# 2575 
+# 1418 [6]
 #   piko_pf         micro_pf        piko_fev       micro_fev    
-# Min.   :345.0   Min.   :401.0   Min.   :2.240   Min.   :2.310  
-# 1st Qu.:392.5   1st Qu.:403.0   1st Qu.:2.308   1st Qu.:2.368  
-# Median :403.0   Median :404.5   Median :2.385   Median :2.430  
-# Mean   :393.4   Mean   :405.8   Mean   :2.395   Mean   :2.437  
-# 3rd Qu.:406.5   3rd Qu.:407.5   3rd Qu.:2.462   3rd Qu.:2.507  
-# Max.   :414.0   Max.   :414.0   Max.   :2.570   Max.   :2.570 
+# Min.   :103.0   Min.   :117.0   Min.   :0.860   Min.   :0.860  
+# 1st Qu.:130.0   1st Qu.:140.8   1st Qu.:1.340   1st Qu.:1.208  
+# Median :144.0   Median :179.0   Median :1.550   Median :1.405  
+# Mean   :153.2   Mean   :205.2   Mean   :1.518   Mean   :1.448  
+# 3rd Qu.:174.0   3rd Qu.:221.5   3rd Qu.:1.650   3rd Qu.:1.575  
+# Max.   :247.0   Max.   :424.0   Max.   :2.430   Max.   :2.430  
+ 
+# 2265 [17]
+#   piko_pf         micro_pf        piko_fev       micro_fev    
+# Min.   : 53.0   Min.   : 51.0   Min.   :0.790   Min.   :0.170  
+# 1st Qu.:115.5   1st Qu.:108.2   1st Qu.:1.420   1st Qu.:1.360  
+# Median :144.5   Median :160.0   Median :1.510   Median :1.635  
+# Mean   :145.5   Mean   :162.1   Mean   :1.551   Mean   :1.520  
+# 3rd Qu.:172.8   3rd Qu.:201.8   3rd Qu.:1.808   3rd Qu.:1.920  
+# Max.   :257.0   Max.   :311.0   Max.   :2.160   Max.   :2.500  
 
-# 2739 
+# 2575 [8]
+#
+
+# 2739 [2]
+#
+
 # 2812 2813 2824 2839 2930 3030 
 # 3046 3051 3185 3226 3229 3254 3331 3449 3503 3509 3538 
 # 3692 3752 3802 3826 3906 3928 3934 3936 4095
