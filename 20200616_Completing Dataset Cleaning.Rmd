@@ -1,0 +1,270 @@
+---
+title: "Completing data set"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages, include=FALSE}
+library(tidyverse)
+library(here)
+library(ggplot2)
+library(knitr)
+library(lubridate)
+library(tableone)
+library(forcats)
+library(stringr)
+library(janitor)
+library(dplyr)
+library(qwraps2)
+library(plyr)
+library(cowplot)
+library(gridExtra)
+library(readr)
+library(magrittr)
+#library(rhdf5)
+library(gtools)
+options(qwraps2_markup = "markdown")
+```
+
+### PIKO DATA ###
+# PiKO: Read in the hand-recorded data
+```{r read_hand_data}
+
+piko_data <- read_csv(here::here("Data", "PiKO Data", "20200612_Emily PiKO Data.csv"))
+piko_codebook <- read_csv(here::here("Data", "PiKO Data", "20200616_PiKO codebook new adds.csv")) 
+
+piko_codebook <- piko_codebook[,-1]
+
+colnames(piko_data) <- colnames(piko_codebook)
+
+
+
+```
+
+# PiKO: Recode variables
+```{r recoding}
+
+piko_data <- piko_data %>% 
+  mutate(event = ifelse(event == "home_visit_1_arm_1", "hv_1", event)) %>%
+  mutate(event = ifelse(event == "home_visit_4_arm_1", "hv_4", event)) %>% 
+  mutate(instrument = ifelse(instrument == "peak_flow_morning_readings", "AM", instrument)) %>% 
+  mutate(instrument = ifelse(instrument == "peak_flow_evening_readings_d145", "PM", instrument))
+
+```
+
+# PiKO: Create merged am/pm dataset 
+```{r merge}
+# Create combined columns for AM/PM
+piko_data <- piko_data %>% 
+  mutate(pf_up = ifelse(is.na(pfa_up) == FALSE, pfa_up, pfp_up)) %>% 
+  #mutate(pf_date = ifelse(is.na(pfa_date) == FALSE, pfa_date, pfp_date)) %>% 
+  mutate(pf_day = ifelse(is.na(pfa_day) == FALSE, pfa_day, pfp_day)) %>% 
+  mutate(pf_done = ifelse(is.na(pfa_done) == FALSE, pfa_done, pfp_done)) %>% 
+  mutate(pf_yn = ifelse(is.na(pfa_yn) == FALSE, pfa_yn, pfp_yn)) %>% 
+  mutate(pf_1 = ifelse(is.na(pfa_1) == FALSE, pfa_1, pfp_1)) %>% 
+  mutate(pf_2 = ifelse(is.na(pfa_2) == FALSE, pfa_2, pfp_2)) %>% 
+  mutate(pf_3 = ifelse(is.na(pfa_3) == FALSE, pfa_3, pfp_3)) %>% 
+  mutate(fev_1 = ifelse(is.na(feva_1) == FALSE, feva_1, fevp_1)) %>% 
+  mutate(fev_2 = ifelse(is.na(feva_2) == FALSE, feva_2, fevp_2)) %>% 
+  mutate(fev_3 = ifelse(is.na(feva_3) == FALSE, feva_3, fevp_3)) 
+
+piko_data <- piko_data %>% 
+  mutate(pfa_date = as.character(pfa_date)) %>% 
+  mutate(pfp_date = as.character(pfp_date)) %>% 
+  mutate(pf_date = ifelse(is.na(pfa_date) == FALSE, pfa_date, pfp_date)) %>% 
+  mutate(pf_date = as.Date(pf_date))
+
+
+# Create columns for best PF and FEV readings
+piko_data <- piko_data %>% 
+  mutate(pf_best = pmax(piko_data$pf_1, piko_data$pf_2, piko_data$pf_3, na.rm = TRUE)) %>% 
+  mutate(fev_best = pmax(piko_data$fev_1, piko_data$fev_2, piko_data$fev_3, na.rm = TRUE))
+
+# Save only relevant variables 
+piko_data <- piko_data %>% 
+  select(id, instrument, rep, pf_date, pf_yn, pf_1, pf_2, pf_3, fev_1, fev_2, fev_3, pf_best, fev_best) %>% 
+  subset(pf_yn == 1)
+
+
+```
+
+# Just trynna reshape the Piko dataset 
+```{r piko_reshape }
+
+# Gather readings so they are stacked vertically to match microlife dataframe format 
+# First peakflow readings 
+pf_long <- piko_data %>% 
+  select(id, pf_date, instrument, pf_1, pf_2, pf_3) %>% 
+  gather('pf_1', 'pf_2', 'pf_3', key = "pf_reading", value = "piko_pf") %>% 
+  mutate(reading = ifelse(pf_reading == "pf_1", 1, NA)) %>% 
+  mutate(reading= ifelse(pf_reading == "pf_2", 2, reading)) %>% 
+  mutate(reading = ifelse(pf_reading == "pf_3", 3, reading))
+# Order them according to ID, then date, then instrument (am vs. pm)
+pf_long <- pf_long[order(pf_long$id, pf_long$pf_date, pf_long$instrument),] 
+
+# Then same thing with FEV readings 
+fev_long <- piko_data %>%  
+  select(id, pf_date, instrument, fev_1, fev_2, fev_3) %>% 
+  gather('fev_1', 'fev_2', 'fev_3', key = "fev_reading", value = "piko_fev") %>% 
+  mutate(reading = ifelse(fev_reading == "fev_1", 1, NA)) %>% 
+  mutate(reading= ifelse(fev_reading == "fev_2", 2, reading)) %>% 
+  mutate(reading = ifelse(fev_reading == "fev_3", 3, reading))
+fev_long <- fev_long[order(fev_long$id, fev_long$pf_date, fev_long$instrument),]
+
+# Combine PEF and FEV sets, select columns to keep + rename  
+piko_reshaped <- left_join(pf_long, fev_long, by = c("id"="id", "pf_date"="pf_date", "instrument"="instrument", "reading"="reading")) %>% 
+  mutate(date = pf_date) %>%
+  select(id, date, instrument, reading, piko_pf, piko_fev) 
+
+# Get rid of unneeded data sets 
+rm(pf_long) 
+rm(fev_long)
+
+```
+
+# Checking out Piko dataset
+```{r piko_check}
+
+# Check out incompletes 
+piko_incomplete <- piko_reshaped[!complete.cases(piko_reshaped),] #All of these match a manual check with the raw data spreadsheet. 
+
+rm(piko_incomplete)
+```
+
+
+
+
+### MICRO DATA ###
+# Successful Microfiles read-in
+```{r micro_read_in}
+
+require(data.table)
+micro_data <- rbindlist(lapply(list.files(path="M:/Emily K23 - AIRWEIGHS/Emily K23/Analyses/AIRWEIGHS_Git_Analysis/Data/WD temp", pattern="*.csv", full.names = TRUE), fread))
+
+
+```
+
+# Micro: Recode variables & clean 
+```{r micro_recode }
+
+# Create "instrument" column indicating 'morning' or 'evening' reading to match piko_data_select
+micro_data <- micro_data %>% 
+  mutate(instrument = ifelse(str_detect(micro_data$Time, "AM") == TRUE, "AM", NA)) %>%
+  mutate(instrument = ifelse(str_detect(micro_data$Time, "PM") == TRUE, "PM", instrument))
+
+# Delete extraneous rows 
+micro_data <- micro_data[!(is.na(micro_data$instrument))]
+
+# Make numeric variables numeric (PEF, FEV), date variable as date 
+micro_data <- micro_data %>% 
+  mutate(micro_pf = as.numeric(`PEF(l/min)`)) %>% 
+  mutate(micro_fev = as.numeric(`FEV1(l)`)) %>% 
+  mutate(date = as.Date(date))
+
+# Rename columns 
+names(micro_data)[names(micro_data) == "Time"] <- "micro_time"
+names(micro_data)[names(micro_data) == "Date"] <- "date"
+
+# Reorder columns 
+micro_data <- micro_data %>% 
+  select(id, date, micro_time, instrument, micro_pf, micro_fev)
+
+
+```
+
+# Create readings variable (1, 2, or 3)
+```{r readings}
+
+# Create at attempt counter w dplyr
+micro_data <- micro_data %>% 
+  group_by(id, date, instrument) %>%
+  dplyr::mutate(reading = row_number()) %>% 
+  select(id, date, micro_time, instrument, reading, micro_pf, micro_fev)
+
+```
+
+# checking out Micro dataset
+```{r micro_check}
+
+# Check out incompletes 
+micro_incomplete <- micro_data[!complete.cases(micro_data),] # None! Great! 
+
+rm(micro_incomplete)
+```
+
+
+
+
+### JOINING TBLS + FLAGGING SUSPICIOUS VALUES ###
+# Attempting dataset joining
+```{r join }
+
+piko_reshaped$date <- as.character(piko_reshaped$date)
+
+micro_data$date <- as.character(as.Date(micro_data$date, format = '%m/%d/%Y'))
+
+# Piko to Micro
+pikmic <- merge(piko_reshaped, micro_data, by = c("id", "date", "instrument", "reading"), all=TRUE)
+
+# But this time, we want only IDs 3063, 3826, 3936
+pikmic <- filter(pikmic, id==3063 | id==3826 | id==3936)
+
+```
+
+# Differences calculation
+```{r differences }
+pikmic$piko_pf <- as.numeric(pikmic$piko_pf)
+pikmic$piko_fev <- as.numeric(pikmic$piko_fev)
+pikmic$micro_fev <- as.numeric(pikmic$micro_fev)
+pikmic$micro_pf <- as.numeric(pikmic$micro_pf)
+
+pikmic <- pikmic %>% 
+  mutate(pf_diff = (piko_pf - micro_pf)) %>% 
+  mutate(fev_diff = (piko_fev - micro_fev)) %>% 
+  select(id, date, instrument, reading, micro_time, piko_pf, micro_pf, pf_diff, piko_fev, micro_fev, fev_diff)
+
+#test2 <- pikmic %>% 
+#  mutate(status = ifelse(fev_diff == 0 | pf_diff == 0, "ALMOST", NA)) %>% 
+#  mutate(status = ifelse(fev_diff == 0 & pf_diff == 0, "YAY ! ", status)) %>% 
+#  mutate(status = ifelse(is.na(fev_diff) == TRUE | is.na(pf_diff) == TRUE, "bah humbug", status)) %>% 
+#  mutate(status = ifelse(is.na(status) == TRUE, ":C", status))
+
+# Clean up 
+rm(piko_codebook) 
+rm(piko_reshaped) 
+rm(micro_data) 
+
+```
+
+# Flag PF<100 0r >400, FEV<1 or >4
+```{r flag_lowest_values }
+
+pikmic <- pikmic %>% 
+  mutate(flag_mic_pf = ifelse(micro_pf < 100, "low micro pf", NA)) %>% 
+  mutate(flag_mic_pf = ifelse(micro_pf > 399, "high micro pf", flag_mic_pf)) %>%
+  mutate(flag_pik_pf = ifelse(piko_pf < 100, "low piko pf", NA)) %>% 
+  mutate(flag_pik_pf = ifelse(piko_pf > 399, "high piko pf", flag_pik_pf)) %>% 
+  mutate(flag_mic_fev = ifelse(micro_fev < 1, "low micro fev", NA)) %>% 
+  mutate(flag_mic_fev = ifelse(micro_fev > 3.99, "high micro fev", flag_mic_fev)) %>% 
+  mutate(flag_pik_fev = ifelse(piko_fev < 1, "low piko fev", NA)) %>% 
+  mutate(flag_pik_fev = ifelse(piko_fev > 3.99, "high piko fev", flag_pik_fev)) %>% 
+  unite(flag_type, flag_pik_pf, flag_mic_pf, flag_pik_fev, flag_mic_fev, sep = " + ", remove = TRUE, na.rm = TRUE) #%>% 
+  #mutate(flag_yn = ifelse(flag_type != "", 1, NA))
+
+# Only the flagged observations 
+flags_only <- pikmic %>% 
+  filter(flag_type != "")
+
+flag_ids <- unique(flags_only$id)
+
+# Only the study ids with any flagged value 
+flagged_participants <- pikmic %>% 
+  filter(id %in% flag_ids)
+
+#write.csv(flagged_participants, "20200228_Flagged Participants.csv")
+
+```
+
