@@ -26,8 +26,8 @@ options(qwraps2_markup = "markdown")
 
 ```{r reading }
 
-data <- read_csv(here::here("Data", "20200624_HtGenRaceEthnDob.csv"))
-codebook <- read_csv(here::here("Data", "20200624_HtGenRaceEthnDob codebook.csv")) 
+data <- read_csv(here::here("Data", "20200706_HtGenRaceEthnDob2.csv"))
+codebook <- read_csv(here::here("Data", "20200706_HtGenRaceEthnDob2 codebook.csv")) 
 
 codebook <- codebook[,-1]
 
@@ -38,23 +38,40 @@ colnames(data) <- colnames(codebook)
 # Adjust demographics data format
 ```{r}
 # delete extraneous columns 
-data <- select(data, -event, -instrument, -instance)
+data <- select(data, -event, -instrument, -instance, -dob_a, -dob_c)
+
+# rename dob_b to dob
+data <- data %>% 
+  mutate(dob = dob_b) %>% 
+  select(-dob_b)
 
 # delete rows where all is NA 
-data <- data[!(is.na(data$height)==TRUE & is.na(data$gender)==TRUE), ]
+data <- data[!(is.na(data$height)==TRUE & is.na(data$gender)==TRUE & is.na(data$dob)==TRUE), ]
 
 # pull out height 
 h_data <- data %>% 
   select(id, height) %>% 
   filter(is.na(height) == FALSE)
 
-# rest of demographics (besides height) in one df
-data1 <- data %>% 
-  filter(is.na(gender) == FALSE) %>%
-  select(-height)
+# pull out dob data 
+dob_data <- data %>% 
+  select(id, dob) %>% 
+  filter(is.na(dob) == FALSE)
 
-# combine DFs 
-data2 <- merge(x = data1, y = h_data, by = "id", all = TRUE)
+# rest of demographics (besides height) in one df
+main_data <- data %>% 
+  filter(is.na(gender) == FALSE) %>%
+  select(-height, -dob)
+
+# combine main with height, dob
+dem_data <- merge(x = main_data, y = h_data, by = "id", all = TRUE)
+dem_data <- merge(x = dem_data, y = dob_data, by = "id", all = TRUE)
+
+
+# clean up
+rm(main_data)
+rm(h_data) 
+rm(dob_data)
 
 ```
 
@@ -69,8 +86,8 @@ readings_data <- readings_data[!(is.na(readings_data$id)==TRUE), ]
 # delete extraneous columns 
 readings_data <- select(readings_data, id, date, instrument, reading, micro_time, piko_pf, micro_pf, pf_diff, piko_fev, micro_fev, fev_diff, flag_type)
 
-# join readings + dem 
-combined_data <- merge(x=readings_data, y=data2, by = "id", all.x = TRUE)
+# join readings + demographic dfs 
+combined_data <- merge(x=readings_data, y=dem_data, by = "id", all.x = TRUE)
 
 ```
 
@@ -79,8 +96,14 @@ combined_data <- merge(x=readings_data, y=data2, by = "id", all.x = TRUE)
 
 # reformat dates into dates 
 combined_data <- combined_data %>% 
-  mutate(date = as.Date(combined_data$date))
-# AAUUUGHH DOB didn't export properly from Redcap. Gotta check that out. 
+  mutate(date = as.Date(combined_data$date, "%m/%d/%y")) %>% 
+  mutate(dob = as.Date(combined_data$dob, "%m/%d/%y")) 
+
+# difftime function for age at time of reading, convert from weeks to years
+combined_data <- combined_data %>% 
+  mutate(age = difftime(date, dob, units="weeks")) %>% 
+  mutate(age = round((age / 52.143), digits=2))
+
 
 ```
 
